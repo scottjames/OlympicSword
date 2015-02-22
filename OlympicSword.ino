@@ -72,13 +72,13 @@ void loop() {
   unsigned long currentTime = millis();
 
   // check SLOW
-  if (digitalRead(A0) == HIGH) {
+  if (digitalRead(PIN_SLOW) == HIGH) {
     if ( ((currentTime - lastSlowTime) / 1000) > SEQ_TIMEOUT_SECS ) {
       sequenceSlow = 0;
     }
     Serial.print(F("SLOW "));
     Serial.println(sequenceSlow, DEC);    
-    slowSequence(sequenceSlow, strip);
+    slowSequence(sequenceSlow, strip, PIN_SLOW);
     // run 1 quick loop in SLOW program
     // increment SLOW counter to know which sequence we're on
     lastSlowTime = currentTime;
@@ -92,13 +92,13 @@ void loop() {
   }
 
   // check FAST
-  if (digitalRead(A1) == HIGH) {
+  if (digitalRead(PIN_FAST) == HIGH) {
     if ( ((currentTime - lastFastTime) / 1000) > SEQ_TIMEOUT_SECS ) {
       sequenceFast = 0;
     }
     Serial.print(F("FAST "));
     Serial.println(sequenceFast, DEC);    
-    fastSequence(sequenceFast, strip);
+    fastSequence(sequenceFast, strip, PIN_FAST);
     // run 1 quick loop in FAST program
     // increment FAST counter to know which sequence we're on
     lastFastTime = currentTime;
@@ -120,7 +120,7 @@ void loop() {
 
 // Slow sequence - for low engery display.
 // run only one sequence then return (to check inputs)
-void slowSequence(int &seq, Adafruit_NeoPixel &strip) {
+void slowSequence(int &seq, Adafruit_NeoPixel &strip, uint8_t inputpin) {
 
   switch (seq) {
   case 1:
@@ -138,17 +138,17 @@ void slowSequence(int &seq, Adafruit_NeoPixel &strip) {
 
   case 10:
     //IdleRainbowCycleStrobe(strip, strip, 25);  
-    rainbowCycleStrobe(strip, 25);
+    rainbowCycleStrobe(strip, 25, inputpin);
     break;
 
   case 11:
     //rainbow(strip, 20);
-    rainbowCycle(strip, 30);
+    rainbowCycle(strip, 30, inputpin);
     break;
   case 12:
     break;
   case 13:
-    theaterChaseRainbow(strip, 80);    
+    theaterChaseRainbow(strip, 80, inputpin);    
     break;
 
   case 20:
@@ -170,23 +170,23 @@ void slowSequence(int &seq, Adafruit_NeoPixel &strip) {
 
 // Fast sequence - for high engery display.
 // run only one sequence then return (to check inputs)
-void fastSequence(int &seq, Adafruit_NeoPixel &strip) {
+void fastSequence(int &seq, Adafruit_NeoPixel &strip, uint8_t inputpin) {
 
   switch (seq) {
   case 1:
-    theaterChase(strip, strip.Color(127, 127, 127), 50); // White
+    theaterChase(strip, strip.Color(127, 127, 127), 50, inputpin); // White
     break;
   case 2:
-    theaterChase(strip, strip.Color(127,   0,   0), 50); // Red
+    theaterChase(strip, strip.Color(127,   0,   0), 50, inputpin); // Red
     break;
   case 3:
-    theaterChase(strip, strip.Color(  0,   0, 127), 50); // Blue
+    theaterChase(strip, strip.Color(  0,   0, 127), 50, inputpin); // Blue
     break;
   case 4:
-    theaterChase(strip, strip.Color(  0,   127, 0), 50); // Green
+    theaterChase(strip, strip.Color(  0,   127, 0), 50, inputpin); // Green
     break;
   case 5:
-    theaterChaseRainbow(strip, 30);
+    theaterChaseRainbow(strip, 30, inputpin);
     break;
 
 // TODO: add more sequences...
@@ -330,17 +330,18 @@ void colorWipeReverse(Adafruit_NeoPixel &strip, uint32_t c, uint8_t wait) {
 void FireTip(Adafruit_NeoPixel &strip, uint32_t c, uint8_t wait) {
 
   uint32_t black = strip.Color(0, 0, 0);
+#define TIP_SIZE 2
 
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
+  for(uint16_t i=0; i<strip.numPixels()-TIP_SIZE; i++) {
     strip.setPixelColor(i, c);
     strip.setPixelColor(i+1, c);
-    strip.setPixelColor(i+2, c);
+    strip.setPixelColor(i+TIP_SIZE, c);
     strip.show();
     delay(wait);
 
     strip.setPixelColor(i, black);
     strip.setPixelColor(i+1, black);
-    strip.setPixelColor(i+2, black);
+    strip.setPixelColor(i+TIP_SIZE, black);
     strip.show();
 
   }
@@ -360,8 +361,8 @@ void loadRainbow(Adafruit_NeoPixel &strip, uint8_t wait) {
 }
 
 
-
-void rainbow(Adafruit_NeoPixel &strip, uint8_t wait) {
+// show rainbow, and check input pin if LOW then break loop and return.
+void rainbow(Adafruit_NeoPixel &strip, uint8_t wait, uint8_t inputpin) {
   uint16_t i, j;
 
   for(j=0; j<256; j++) {
@@ -370,11 +371,18 @@ void rainbow(Adafruit_NeoPixel &strip, uint8_t wait) {
     }
     strip.show();
     delay(wait);
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
 // Slightly different, this makes the rainbow equally distributed throughout
-void rainbowCycle(Adafruit_NeoPixel &strip, uint8_t wait) {
+// check input pin if LOW then break loop and return.
+void rainbowCycle(Adafruit_NeoPixel &strip, uint8_t wait, uint8_t inputpin) {
   uint16_t i, j;
 
   for(j=0; j<256*1; j++) { // 1 cycles of all colors on wheel
@@ -383,13 +391,20 @@ void rainbowCycle(Adafruit_NeoPixel &strip, uint8_t wait) {
     }
     strip.show();
     delay(wait);
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
 
 // Slightly different, this makes the rainbow equally distributed throughout
 // with white strobe flashes for extra flare
-void rainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
+// check input pin if LOW then break loop and return.
+void rainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait, uint8_t inputpin) {
   uint16_t i, j;
   uint32_t col;
 
@@ -409,7 +424,14 @@ void rainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
     }
     strip.show();
     delay(wait);
+      
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
+  
 }
 
 
@@ -417,7 +439,8 @@ void rainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
 // Slightly different, this makes the rainbow equally distributed throughout
 // with white strobe flashes for extra flare
 // run LEFT and RIGHT strips together
-void IdleRainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
+// check input pin if LOW then break loop and return.
+void IdleRainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait, uint8_t inputpin) {
   uint16_t i, j;
   uint32_t col;
 
@@ -441,6 +464,12 @@ void IdleRainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
     }
     strip.show();
     delay(wait);
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
@@ -448,9 +477,9 @@ void IdleRainbowCycleStrobe(Adafruit_NeoPixel &strip, uint8_t wait) {
 
 
 // strobe flare (fg color) with burn out to background (bg color)
-void strobeToBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint32_t bg, uint8_t wait, uint16_t num) {
+void strobeToBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint32_t bg, uint8_t wait, uint16_t num, uint8_t inputpin) {
 
-  for (int j=0; j<num; j++) {  //do num cycles of strobes
+  for (uint16_t j=0; j<num; j++) {  //do num cycles of strobes
     // use random location for next strobe
     int ledStrobe = random(strip.numPixels());
     strip.setPixelColor(ledStrobe, fg);    //turn on strobe color
@@ -458,17 +487,23 @@ void strobeToBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint32_t bg, uint
     delay(wait);
     strip.setPixelColor(ledStrobe, bg);    //turn on background / burnout color.
     strip.show();  
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
 
 
 // strobe flare (fg color) with NO burn out (save existing background)
-void strobeSaveBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint8_t wait, uint16_t num) {
+void strobeSaveBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint8_t wait, uint16_t num, uint8_t inputpin) {
 
   uint32_t savePixel; 
 
-  for (int j=0; j<num; j++) {  //do num cycles of strobes
+  for (uint16_t j=0; j<num; j++) {  //do num cycles of strobes
 
     // use random location for next strobe
     int ledStrobe = random(strip.numPixels());
@@ -479,6 +514,11 @@ void strobeSaveBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint8_t wait, u
     strip.setPixelColor(ledStrobe, savePixel);  // restore background
     strip.show();
 
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
@@ -486,45 +526,58 @@ void strobeSaveBackground(Adafruit_NeoPixel &strip, uint32_t fg, uint8_t wait, u
 
 
 //Theatre-style crawling lights.
-void theaterChase(Adafruit_NeoPixel &strip, uint32_t c, uint8_t wait) {
+void theaterChase(Adafruit_NeoPixel &strip, uint32_t c, uint8_t wait, uint8_t inputpin) {
   for (int j=0; j<10; j++) {  //do 10 cycles of chasing
     for (int q=0; q < 3; q++) {
-      for (int i=0; i < strip.numPixels(); i=i+3) {
+      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
         strip.setPixelColor(i+q, c);    //turn every third pixel on
       }
       strip.show();
 
       delay(wait);
 
-      for (int i=0; i < strip.numPixels(); i=i+3) {
+      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
         strip.setPixelColor(i+q, 0);        //turn every third pixel off
       }
     }
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
 //Theatre-style crawling lights with rainbow effect
 // NOTE: this sequence takes around 20 seconds (slow) So, someday check for input inside this loop.
-void theaterChaseRainbow(Adafruit_NeoPixel &strip, uint8_t wait) {
+void theaterChaseRainbow(Adafruit_NeoPixel &strip, uint8_t wait, uint8_t inputpin) {
   for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
     for (int q=0; q < 3; q++) {
-      for (int i=0; i < strip.numPixels(); i=i+3) {
+      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
         strip.setPixelColor(i+q, Wheel(strip,  (i+j) % 255));    //turn every third pixel on
       }
       strip.show();
 
       delay(wait);
 
-      for (int i=0; i < strip.numPixels(); i=i+3) {
+      for (uint16_t i=0; i < strip.numPixels(); i=i+3) {
         strip.setPixelColor(i+q, 0);        //turn every third pixel off
       }
     }
+    
+    // check input port
+    if (digitalRead(inputpin) == LOW) {
+      return;
+    }
+
   }
 }
 
 
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
+// SAJ: Wheel should be static method in Class instead of requiring object.
 uint32_t Wheel(Adafruit_NeoPixel &strip, byte WheelPos) {
   if(WheelPos < 85) {
     return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
